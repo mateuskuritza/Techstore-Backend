@@ -6,7 +6,7 @@ const config = {
 	password: "123456",
 	host: "localhost",
 	port: 5432,
-	database: "techstore",
+	database: process.env.NODE_ENV === "test" ? "techstore_test" : "techstore",
 };
 const connection = new Pool(config);
 
