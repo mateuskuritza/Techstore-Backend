@@ -9,6 +9,9 @@ beforeEach(async () => {
 	await connection.query(`DELETE FROM sales`);
 	await connection.query(`INSERT INTO users (id, name, cpf, email, password) values (1, 'teste', 123, 'teste', 123)`);
 	await connection.query(`INSERT INTO sessions ("customerId", token) values (1, 1)`);
+	await connection.query(
+		`INSERT INTO products (title, description, image, "categoryId", price) values ('ssdteste', 'ssd super legal de teste', 'https://images-na.ssl-images-amazon.com/images/I/61U7T1koQqL._AC_SY450_.jpg', 6, 60)`
+	);
 });
 
 afterAll(async () => {
@@ -52,7 +55,7 @@ describe("GET products by category", () => {
 		expect(result.body).toEqual([
 			{
 				categoryId: 1,
-				categoryTitle: "mouse",
+				categoryName: "mouse",
 				description: "mouse super legal",
 				id: expect.any(Number),
 				image: "https://images-na.ssl-images-amazon.com/images/I/71OrygkkeOL._AC_SY450_.jpg",
@@ -86,5 +89,26 @@ describe("GET products", () => {
 	it("return products", async () => {
 		const result = await supertest(app).get("/products").set("Authorization", "Bearer 1");
 		expect(typeof result.body).toEqual("object");
+	});
+});
+
+describe("GET product by ID", () => {
+	let id;
+	beforeEach(async () => {
+		const result = await connection.query("SELECT id FROM products");
+		id = result.rows[0].id;
+	});
+	it("return status 400 with invalid authorization", async () => {
+		const result = await supertest(app).get(`/product/${id}`);
+		expect(result.status).toEqual(400);
+	});
+
+	it("return status 401 with invalid token", async () => {
+		const result = await supertest(app).get(`/product/${id}`).set("Authorization", "Bearer faketoken");
+		expect(result.status).toEqual(401);
+	});
+	it("return correct product", async () => {
+		const result = await supertest(app).get(`/product/${id}`).set("Authorization", "Bearer 1");
+		expect(result.body.id).toEqual(id);
 	});
 });

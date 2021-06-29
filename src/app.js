@@ -99,70 +99,80 @@ app.post('/sign-in', async (req, res) => {
 });
 
 async function authUser(authorization) {
-    const token = authorization.replace('Bearer ', '');
-    const user = await connection.query(
-        `SELECT * FROM sessions WHERE token = $1`,
-        [token]
-    );
-    return user.rows[0];
+	const token = authorization.replace("Bearer ", "");
+	const user = await connection.query(`SELECT * FROM sessions WHERE token = $1`, [token]);
+	return user.rows[0];
 }
 
-app.get('/products/:category', async (req, res) => {
-    try {
-        const authorization = req.headers['authorization'];
-        const { category } = req.params;
+app.get("/products/:category", async (req, res) => {
+	try {
+		const authorization = req.headers["authorization"];
+		const { category } = req.params;
 
-        if (
-            ![
-                'mouse',
-                'teclado',
-                'memoria_ram',
-                'placa_de_video',
-                'processador',
-                'ssd',
-            ].includes(category) ||
-            !authorization
-        ) {
-            return res.sendStatus(400);
-        }
-        const user = await authUser(authorization);
-        if (!user) return res.sendStatus(401);
+		if (!["mouse", "teclado", "memoria_ram", "placa_de_video", "processador", "ssd"].includes(category) || !authorization) {
+			return res.sendStatus(400);
+		}
+		const user = await authUser(authorization);
+		if (!user) return res.sendStatus(401);
 
-        const requestedData = await connection.query(
-            `
-    SELECT products.*, categories.title AS "categoryTitle", categories.id AS "categoryId" FROM products
+		const requestedData = await connection.query(
+			`
+    SELECT products.*, categories.title AS "categoryName", categories.id AS "categoryId" FROM products
     JOIN categories
     ON products."categoryId" = categories.id
     WHERE categories.title = $1`,
-            [category]
-        );
-        res.send(requestedData.rows);
-    } catch {
-        res.sendStatus(500);
-    }
+			[category]
+		);
+		res.send(requestedData.rows);
+	} catch {
+		res.sendStatus(500);
+	}
 });
 
-app.get('/products', async (req, res) => {
-    try {
-        const authorization = req.headers['authorization'];
-        if (!authorization) return res.sendStatus(400);
-        const user = await authUser(authorization);
-        if (!user) return res.sendStatus(401);
+app.get("/products", async (req, res) => {
+	try {
+		const authorization = req.headers["authorization"];
+		if (!authorization) return res.sendStatus(400);
+		const user = await authUser(authorization);
+		if (!user) return res.sendStatus(401);
 
-        const search = req.query.search ? '%' + req.query.search + '%' : '%%';
-        const requestedData = await connection.query(
-            `
-    SELECT * FROM products
+		const search = req.query.search ? "%" + req.query.search + "%" : "%%";
+		const requestedData = await connection.query(
+			`
+    SELECT products.*, categories.title AS "categoryName" FROM products
     JOIN categories
     ON products."categoryId" = categories.id
     WHERE products.title iLIKE $1
     `,
-            [search]
-        );
-        res.send(requestedData.rows);
-    } catch {
-        res.sendStatus(500);
-    }
+			[search]
+		);
+		res.send(requestedData.rows);
+	} catch {
+		res.sendStatus(500);
+	}
+});
+
+app.get("/product/:id", async (req, res) => {
+	try {
+		const authorization = req.headers["authorization"];
+		if (!authorization) return res.sendStatus(400);
+		const user = await authUser(authorization);
+		if (!user) return res.sendStatus(401);
+		const { id } = req.params;
+
+		const requestedData = await connection.query(
+			`
+    SELECT products.*, categories.title AS "categoryName" FROM products
+    JOIN categories
+    ON products."categoryId" = categories.id
+    WHERE products.id = $1
+    `,
+			[id]
+		);
+		res.send(requestedData.rows[0]);
+	} catch {
+		res.sendStatus(500);
+	}
 });
 
 export default app;
