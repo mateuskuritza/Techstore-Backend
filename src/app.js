@@ -1,62 +1,108 @@
-import express from "express";
-import cors from "cors";
-import connection from "./database/database.js";
+import express from 'express';
+import cors from 'cors';
+import connection from './database/database.js';
+import bcrypt from 'bcrypt';
+import joi from 'joi';
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.post('/sign-up', async (req, res) => {
+    const { name, email, password, cpf } = req.body;
+    const userSchema = joi.object({
+        name: joi.string().alphanum().min(3).max(30).required(),
+        email: joi.string().email().required(),
+        password: joi.string().min(6).required(),
+        cpf: joi
+            .string()
+            .length(11)
+            .pattern(/^[0-9]+$/)
+            .required(),
+    });
+    const validation = userSchema.validate(req.body);
+    try {
+        if (!('error' in validation)) {
+            const hash = bcrypt.hashSync(password, 10);
+            await connection.query(
+                'INSERT INTO users (name, cpf, email, password) VALUES ($1, $2, $3, $4)',
+                [name, cpf, email, hash]
+            );
+            res.sendStatus(201);
+        } else {
+            res.sendStatus(400);
+        }
+    } catch (e) {
+        console.log(e);
+        res.sendStatus(500);
+    }
+});
+
 async function authUser(authorization) {
-	const token = authorization.replace("Bearer ", "");
-	const user = await connection.query(`SELECT * FROM sessions WHERE token = $1`, [token]);
-	return user.rows[0];
+    const token = authorization.replace('Bearer ', '');
+    const user = await connection.query(
+        `SELECT * FROM sessions WHERE token = $1`,
+        [token]
+    );
+    return user.rows[0];
 }
 
-app.get("/products/:category", async (req, res) => {
-	try {
-		const authorization = req.headers["authorization"];
-		const { category } = req.params;
+app.get('/products/:category', async (req, res) => {
+    try {
+        const authorization = req.headers['authorization'];
+        const { category } = req.params;
 
-		if (!["mouse", "teclado", "memoria_ram", "placa_de_video", "processador", "ssd"].includes(category) || !authorization) {
-			return res.sendStatus(400);
-		}
-		const user = await authUser(authorization);
-		if (!user) return res.sendStatus(401);
+        if (
+            ![
+                'mouse',
+                'teclado',
+                'memoria_ram',
+                'placa_de_video',
+                'processador',
+                'ssd',
+            ].includes(category) ||
+            !authorization
+        ) {
+            return res.sendStatus(400);
+        }
+        const user = await authUser(authorization);
+        if (!user) return res.sendStatus(401);
 
-		const requestedData = await connection.query(
-			`
+        const requestedData = await connection.query(
+            `
     SELECT products.*, categories.title AS "categoryTitle", categories.id AS "categoryId" FROM products
     JOIN categories
     ON products."categoryId" = categories.id
     WHERE categories.title = $1`,
-			[category]
-		);
-		res.send(requestedData.rows);
-	} catch {
-		res.sendStatus(500);
-	}
+            [category]
+        );
+        res.send(requestedData.rows);
+    } catch {
+        res.sendStatus(500);
+    }
 });
 
-app.get("/products", async (req, res) => {
-	try {
-		const authorization = req.headers["authorization"];
-		if (!authorization) return res.sendStatus(400);
-		const user = await authUser(authorization);
-		if (!user) return res.sendStatus(401);
+app.get('/products', async (req, res) => {
+    try {
+        const authorization = req.headers['authorization'];
+        if (!authorization) return res.sendStatus(400);
+        const user = await authUser(authorization);
+        if (!user) return res.sendStatus(401);
 
-		const search = req.query.search ? "%" + req.query.search + "%" : "%%";
-		const requestedData = await connection.query(
-			`
+        const search = req.query.search ? '%' + req.query.search + '%' : '%%';
+        const requestedData = await connection.query(
+            `
     SELECT * FROM products
     JOIN categories
     ON products."categoryId" = categories.id
     WHERE products.title iLIKE $1
     `,
-			[search]
-		);
-		res.send(requestedData.rows);
-	} catch {
-		res.sendStatus(500);
-	}
+            [search]
+        );
+        res.send(requestedData.rows);
+    } catch {
+        res.sendStatus(500);
+    }
 });
 
 export default app;
