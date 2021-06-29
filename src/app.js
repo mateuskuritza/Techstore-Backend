@@ -1,3 +1,10 @@
+import express from 'express';
+import cors from 'cors';
+import connection from './database/database.js';
+import bcrypt from 'bcrypt';
+import joi from 'joi';
+import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
 dotenv.config('../.env');
 
 const app = express();
