@@ -103,12 +103,17 @@ app.post('/logout', async (req, res) => {
     const token = authorization?.replace('Bearer ', '');
     try {
         if (token) {
-            await connection.query('DELETE FROM sessions WHERE token = $1', [
-                token,
-            ]);
-            res.sendStatus(201);
+            if (!(await authUser(token))) {
+                res.sendStatus(404);
+            } else {
+                await connection.query(
+                    'DELETE FROM sessions WHERE token = $1',
+                    [token]
+                );
+                res.sendStatus(201);
+            }
         } else {
-            res.sendStatus(401);
+            res.sendStatus(400);
         }
     } catch (e) {
         console.log(e);

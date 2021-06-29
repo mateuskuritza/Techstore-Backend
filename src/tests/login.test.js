@@ -93,3 +93,26 @@ describe('POST /sign-in', () => {
         expect(request.status).toEqual(401);
     });
 });
+
+describe('POST /logout', () => {
+    it('returns status 201 with valid authorization', async () => {
+        const request = await supertest(app)
+            .post('/logout')
+            .set({ Authorization: 'Bearer 1' });
+        expect(request.status).toEqual(201);
+    });
+
+    it('returns status 400 with invalid authorization', async () => {
+        const request = await supertest(app)
+            .post('/logout')
+            .set({ Authorization: '' });
+        expect(request.status).toEqual(400);
+    });
+
+    it('returns status 404 if session not exist', async () => {
+        const request = await supertest(app)
+            .post('/logout')
+            .set({ Authorization: 'Bearer 2' });
+        expect(request.status).toEqual(404);
+    });
+});
