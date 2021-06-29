@@ -25,21 +25,45 @@ app.post('/sign-up', async (req, res) => {
     });
     const validation = userSchema.validate(req.body);
     try {
-        if (!('error' in validation)) {
+        if (await hasEmailOrCpf(email, cpf)) {
+            res.sendStatus(409);
+        } else if ('error' in validation) {
+            res.sendStatus(400);
+        } else {
             const hash = bcrypt.hashSync(password, 10);
             await connection.query(
                 'INSERT INTO users (name, cpf, email, password) VALUES ($1, $2, $3, $4)',
                 [name, cpf, email, hash]
             );
             res.sendStatus(201);
-        } else {
-            res.sendStatus(400);
         }
     } catch (e) {
-        console.log(e);
         res.sendStatus(500);
     }
 });
+
+async function hasEmailOrCpf(email, cpf) {
+    const requestEmail = await connection.query(
+        'SELECT * FROM users WHERE email = $1',
+        [email]
+    );
+
+    if (requestEmail.rows.length !== 0) {
+        return true;
+    } else {
+        const requestCpf = await connection.query(
+            'SELECT * FROM users WHERE cpf = $1',
+            [cpf]
+        );
+
+        if (requestCpf.rows.length !== 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
 app.post('/sign-in', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -63,7 +87,7 @@ app.post('/sign-in', async (req, res) => {
                     [customer.id, token]
                 );
 
-                res.send(token);
+                res.send({ name: customer.name, token });
             } else {
                 res.sendStatus(400);
             }
