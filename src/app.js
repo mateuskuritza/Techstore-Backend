@@ -3,6 +3,9 @@ import cors from 'cors';
 import connection from './database/database.js';
 import bcrypt from 'bcrypt';
 import joi from 'joi';
+import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
+dotenv.config('../.env');
 
 const app = express();
 app.use(cors());
@@ -35,6 +38,39 @@ app.post('/sign-up', async (req, res) => {
     } catch (e) {
         console.log(e);
         res.sendStatus(500);
+    }
+});
+app.post('/sign-in', async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) {
+        res.sendStatus(400);
+    } else {
+        try {
+            const request = await connection.query(
+                'SELECT * FROM users WHERE email = $1',
+                [email]
+            );
+            const customer = request.rows[0];
+            if (customer && bcrypt.compareSync(password, customer.password)) {
+                const secretKey = process.env.JWT_SECRET;
+                const data = { name: customer.name };
+                const token = jwt.sign(data, secretKey);
+                await connection.query(
+                    `
+              INSERT INTO sessions ("customerId", token)
+              VALUES ($1, $2)
+            `,
+                    [customer.id, token]
+                );
+
+                res.send(token);
+            } else {
+                res.sendStatus(400);
+            }
+        } catch (e) {
+            console.log(e);
+            res.sendStatus(500);
+        }
     }
 });
 
