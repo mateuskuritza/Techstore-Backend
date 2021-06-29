@@ -98,6 +98,24 @@ app.post('/sign-in', async (req, res) => {
     }
 });
 
+app.post('/logout', async (req, res) => {
+    const authorization = req.headers.authorization;
+    const token = authorization?.replace('Bearer ', '');
+    try {
+        if (token) {
+            await connection.query('DELETE FROM sessions WHERE token = $1', [
+                token,
+            ]);
+            res.sendStatus(201);
+        } else {
+            res.sendStatus(401);
+        }
+    } catch (e) {
+        console.log(e);
+        res.sendStatus(500);
+    }
+});
+
 async function authUser(authorization) {
     const token = authorization.replace('Bearer ', '');
     const user = await connection.query(
