@@ -89,7 +89,7 @@ app.post('/sign-in', async (req, res) => {
 
                 res.send({ name: customer.name, token });
             } else {
-                res.sendStatus(400);
+                res.sendStatus(401);
             }
         } catch (e) {
             console.log(e);
