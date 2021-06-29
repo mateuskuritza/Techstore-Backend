@@ -1,0 +1,90 @@
+import supertest from "supertest";
+import app from "../app.js";
+import connection from "../database/database.js";
+
+beforeEach(async () => {
+	await connection.query("DELETE FROM users");
+	await connection.query(`DELETE FROM sessions`);
+	await connection.query(`DELETE FROM products`);
+	await connection.query(`DELETE FROM sales`);
+	await connection.query(`INSERT INTO users (id, name, cpf, email, password) values (1, 'teste', 123, 'teste', 123)`);
+	await connection.query(`INSERT INTO sessions ("customerId", token) values (1, 1)`);
+});
+
+afterAll(async () => {
+	await connection.query("DELETE FROM users");
+	await connection.query(`DELETE FROM sessions`);
+	await connection.query(`DELETE FROM products`);
+	await connection.query(`DELETE FROM sales`);
+	connection.end();
+});
+/*
+beforeAll( async () => {
+	await connection.query(`INSERT INTO categories (id,title) values (1,'mouse')`);
+	await connection.query(`INSERT INTO categories (id,title) values (2,'teclado')`);
+	await connection.query(`INSERT INTO categories (id,title) values (3,'memoria_ram')`);
+	await connection.query(`INSERT INTO categories (id,title) values (4,'placa_de_video')`);
+	await connection.query(`INSERT INTO categories (id,title) values (5,'processador')`);
+	await connection.query(`INSERT INTO categories (id,title) values (6,'ssd')`);
+
+})*/
+describe("GET products by category", () => {
+	it("return status 400 with invalid authorization", async () => {
+		const result = await supertest(app).get(`/products/mouse`);
+		expect(result.status).toEqual(400);
+	});
+	it("return status 400 with invalid category name", async () => {
+		const result = await supertest(app).get(`/products/teste`);
+		expect(result.status).toEqual(400);
+	});
+	it("return status 401 with invalid token", async () => {
+		const result = await supertest(app).get(`/products/mouse`).set("Authorization", "Bearer faketoken");
+		expect(result.status).toEqual(401);
+	});
+	it("return category products", async () => {
+		await connection.query(
+			`INSERT INTO products (title, description, image, price, "categoryId") values ('mouselegal', 'mouse super legal', 'https://images-na.ssl-images-amazon.com/images/I/71OrygkkeOL._AC_SY450_.jpg', 10, 1)`
+		);
+		await connection.query(
+			`INSERT INTO products (title, description, image, price, "categoryId") values ('tecladolegal', 'teclado super legal', 'https://http2.mlstatic.com/D_NQ_NP_826537-MLA43977268687_112020-O.jpg', 20, 2)`
+		);
+		const result = await supertest(app).get("/products/mouse").set("Authorization", "Bearer 1");
+		expect(result.body).toEqual([
+			{
+				categoryId: 1,
+				categoryTitle: "mouse",
+				description: "mouse super legal",
+				id: expect.any(Number),
+				image: "https://images-na.ssl-images-amazon.com/images/I/71OrygkkeOL._AC_SY450_.jpg",
+				price: 10,
+				title: "mouselegal",
+			},
+		]);
+	});
+});
+
+describe("GET products", () => {
+	it("return status 400 with invalid authorization", async () => {
+		const result = await supertest(app).get(`/products`);
+		expect(result.status).toEqual(400);
+	});
+
+	it("return status 401 with invalid token", async () => {
+		const result = await supertest(app).get(`/products`).set("Authorization", "Bearer faketoken");
+		expect(result.status).toEqual(401);
+	});
+	it("return products query search", async () => {
+		await connection.query(
+			`INSERT INTO products (title, description, image, price, "categoryId") values ('mouselegal', 'mouse super legal', 'https://images-na.ssl-images-amazon.com/images/I/71OrygkkeOL._AC_SY450_.jpg', 10, 1)`
+		);
+		await connection.query(
+			`INSERT INTO products (title, description, image, price, "categoryId") values ('tecladolegal', 'teclado super legal', 'https://http2.mlstatic.com/D_NQ_NP_826537-MLA43977268687_112020-O.jpg', 20, 2)`
+		);
+		const result = await supertest(app).get("/products?search=mouse").set("Authorization", "Bearer 1");
+		expect(result.body.length).toEqual(1);
+	});
+	it("return products", async () => {
+		const result = await supertest(app).get("/products").set("Authorization", "Bearer 1");
+		expect(typeof result.body).toEqual("object");
+	});
+});
