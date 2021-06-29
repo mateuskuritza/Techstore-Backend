@@ -1,43 +1,94 @@
-import express from "express";
-import cors from "cors";
-import connection from "./database/database.js";
-import bcrypt from "bcrypt";
-import joi from "joi";
+dotenv.config('../.env');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.post("/sign-up", async (req, res) => {
-	const { name, email, password, cpf } = req.body;
-	const userSchema = joi.object({
-		name: joi.string().alphanum().min(3).max(30).required(),
-		email: joi.string().email().required(),
-		password: joi.string().min(6).required(),
-		cpf: joi
-			.string()
-			.length(11)
-			.pattern(/^[0-9]+$/)
-			.required(),
-	});
-	const validation = userSchema.validate(req.body);
-	try {
-		if (!("error" in validation)) {
-			const hash = bcrypt.hashSync(password, 10);
-			await connection.query("INSERT INTO users (name, cpf, email, password) VALUES ($1, $2, $3, $4)", [
-				name,
-				cpf,
-				email,
-				hash,
-			]);
-			res.sendStatus(201);
-		} else {
-			res.sendStatus(400);
-		}
-	} catch (e) {
-		console.log(e);
-		res.sendStatus(500);
-	}
+app.post('/sign-up', async (req, res) => {
+    const { name, email, password, cpf } = req.body;
+    const userSchema = joi.object({
+        name: joi.string().alphanum().min(3).max(30).required(),
+        email: joi.string().email().required(),
+        password: joi.string().min(6).required(),
+        cpf: joi
+            .string()
+            .length(11)
+            .pattern(/^[0-9]+$/)
+            .required(),
+    });
+    const validation = userSchema.validate(req.body);
+    try {
+        if (await hasEmailOrCpf(email, cpf)) {
+            res.sendStatus(409);
+        } else if ('error' in validation) {
+            res.sendStatus(400);
+        } else {
+            const hash = bcrypt.hashSync(password, 10);
+            await connection.query(
+                'INSERT INTO users (name, cpf, email, password) VALUES ($1, $2, $3, $4)',
+                [name, cpf, email, hash]
+            );
+            res.sendStatus(201);
+        }
+    } catch (e) {
+        res.sendStatus(500);
+    }
+});
+
+async function hasEmailOrCpf(email, cpf) {
+    const requestEmail = await connection.query(
+        'SELECT * FROM users WHERE email = $1',
+        [email]
+    );
+
+    if (requestEmail.rows.length !== 0) {
+        return true;
+    } else {
+        const requestCpf = await connection.query(
+            'SELECT * FROM users WHERE cpf = $1',
+            [cpf]
+        );
+
+        if (requestCpf.rows.length !== 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
+app.post('/sign-in', async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) {
+        res.sendStatus(400);
+    } else {
+        try {
+            const request = await connection.query(
+                'SELECT * FROM users WHERE email = $1',
+                [email]
+            );
+            const customer = request.rows[0];
+            if (customer && bcrypt.compareSync(password, customer.password)) {
+                const secretKey = process.env.JWT_SECRET;
+                const data = { name: customer.name };
+                const token = jwt.sign(data, secretKey);
+                await connection.query(
+                    `
+              INSERT INTO sessions ("customerId", token)
+              VALUES ($1, $2)
+            `,
+                    [customer.id, token]
+                );
+
+                res.send({ name: customer.name, token });
+            } else {
+                res.sendStatus(401);
+            }
+        } catch (e) {
+            console.log(e);
+            res.sendStatus(500);
+        }
+    }
 });
 
 async function authUser(authorization) {
