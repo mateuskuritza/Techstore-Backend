@@ -85,4 +85,12 @@ describe("GET product by ID", () => {
 		const result = await supertest(app).get(`/product/${id}`);
 		expect(result.body.id).toEqual(id);
 	});
+    it("return status 400 invalid id", async () => {
+		const result = await supertest(app).get(`/product/a`);
+		expect(result.status).toEqual(400);
+	});
+    it("return status 404 product id not exist", async () => {
+		const result = await supertest(app).get(`/product/${id+1}`);
+		expect(result.status).toEqual(404);
+	});
 });
