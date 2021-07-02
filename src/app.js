@@ -5,6 +5,7 @@ import bcrypt from 'bcrypt';
 import joi from 'joi';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import sendEmail from './functions/sendEmail.js';
 dotenv.config('../.env');
 
 const app = express();
@@ -102,7 +103,7 @@ app.post('/sales', async (req, res) => {
     try {
         const auth = req.headers.authorization;
         const user = await authUser(auth);
-        const { cart } = req.body;
+        const { cart, email } = req.body;
         if (user && cart) {
             const customerId = user.id;
             cart.forEach(async (p) => {
@@ -111,7 +112,7 @@ app.post('/sales', async (req, res) => {
                     [customerId, p.quantity, p.name]
                 );
             });
-
+            sendEmail(email,cart);
             res.sendStatus(201);
         } else {
             res.sendStatus(400);
