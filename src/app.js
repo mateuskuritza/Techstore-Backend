@@ -140,7 +140,7 @@ app.get("/products", async (req, res) => {
 app.get("/product/:id", async (req, res) => {
 	try {
 		const { id } = req.params;
-
+        if(isNaN(id)) return res.sendStatus(400);
 		const requestedData = await connection.query(
 			`
     SELECT products.*, categories.title AS "categoryName" FROM products
@@ -150,6 +150,7 @@ app.get("/product/:id", async (req, res) => {
     `,
 			[id]
 		);
+        if(requestedData.rows[0] === undefined) return res.sendStatus(404);
 		res.send(requestedData.rows[0]);
 	} catch {
 		res.sendStatus(500);
