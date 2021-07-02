@@ -87,8 +87,7 @@ app.post('/sign-in', async (req, res) => {
             `,
                     [customer.id, token]
                 );
-
-                res.send({ name: customer.name, token });
+                res.send({ name: customer.name, token, cpf: customer.cpf });
             } else {
                 res.sendStatus(401);
             }
