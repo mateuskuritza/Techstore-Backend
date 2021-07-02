@@ -32,17 +32,9 @@ beforeAll( async () => {
 
 })*/
 describe("GET products by category", () => {
-	it("return status 400 with invalid authorization", async () => {
-		const result = await supertest(app).get(`/products/mouse`);
-		expect(result.status).toEqual(400);
-	});
 	it("return status 400 with invalid category name", async () => {
 		const result = await supertest(app).get(`/products/teste`);
 		expect(result.status).toEqual(400);
-	});
-	it("return status 401 with invalid token", async () => {
-		const result = await supertest(app).get(`/products/mouse`).set("Authorization", "Bearer faketoken");
-		expect(result.status).toEqual(401);
 	});
 	it("return category products", async () => {
 		await connection.query(
@@ -51,7 +43,7 @@ describe("GET products by category", () => {
 		await connection.query(
 			`INSERT INTO products (title, description, image, price, "categoryId") values ('tecladolegal', 'teclado super legal', 'https://http2.mlstatic.com/D_NQ_NP_826537-MLA43977268687_112020-O.jpg', 20, 2)`
 		);
-		const result = await supertest(app).get("/products/mouse").set("Authorization", "Bearer 1");
+		const result = await supertest(app).get("/products/mouse");
 		expect(result.body).toEqual([
 			{
 				categoryId: 1,
@@ -67,15 +59,6 @@ describe("GET products by category", () => {
 });
 
 describe("GET products", () => {
-	it("return status 400 with invalid authorization", async () => {
-		const result = await supertest(app).get(`/products`);
-		expect(result.status).toEqual(400);
-	});
-
-	it("return status 401 with invalid token", async () => {
-		const result = await supertest(app).get(`/products`).set("Authorization", "Bearer faketoken");
-		expect(result.status).toEqual(401);
-	});
 	it("return products query search", async () => {
 		await connection.query(
 			`INSERT INTO products (title, description, image, price, "categoryId") values ('mouselegal', 'mouse super legal', 'https://images-na.ssl-images-amazon.com/images/I/71OrygkkeOL._AC_SY450_.jpg', 10, 1)`
@@ -83,11 +66,11 @@ describe("GET products", () => {
 		await connection.query(
 			`INSERT INTO products (title, description, image, price, "categoryId") values ('tecladolegal', 'teclado super legal', 'https://http2.mlstatic.com/D_NQ_NP_826537-MLA43977268687_112020-O.jpg', 20, 2)`
 		);
-		const result = await supertest(app).get("/products?search=mouse").set("Authorization", "Bearer 1");
+		const result = await supertest(app).get("/products?search=mouse");
 		expect(result.body.length).toEqual(1);
 	});
 	it("return products", async () => {
-		const result = await supertest(app).get("/products").set("Authorization", "Bearer 1");
+		const result = await supertest(app).get("/products");
 		expect(typeof result.body).toEqual("object");
 	});
 });
@@ -98,17 +81,8 @@ describe("GET product by ID", () => {
 		const result = await connection.query("SELECT id FROM products");
 		id = result.rows[0].id;
 	});
-	it("return status 400 with invalid authorization", async () => {
-		const result = await supertest(app).get(`/product/${id}`);
-		expect(result.status).toEqual(400);
-	});
-
-	it("return status 401 with invalid token", async () => {
-		const result = await supertest(app).get(`/product/${id}`).set("Authorization", "Bearer faketoken");
-		expect(result.status).toEqual(401);
-	});
 	it("return correct product", async () => {
-		const result = await supertest(app).get(`/product/${id}`).set("Authorization", "Bearer 1");
+		const result = await supertest(app).get(`/product/${id}`);
 		expect(result.body.id).toEqual(id);
 	});
 });

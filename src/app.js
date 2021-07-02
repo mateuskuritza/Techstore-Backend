@@ -1,101 +1,94 @@
-import express from 'express';
-import cors from 'cors';
-import connection from './database/database.js';
-import bcrypt from 'bcrypt';
-import joi from 'joi';
-import dotenv from 'dotenv';
-import jwt from 'jsonwebtoken';
-dotenv.config('../.env');
+import express from "express";
+import cors from "cors";
+import connection from "./database/database.js";
+import bcrypt from "bcrypt";
+import joi from "joi";
+import dotenv from "dotenv";
+import jwt from "jsonwebtoken";
+dotenv.config("../.env");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.post('/sign-up', async (req, res) => {
-    const { name, email, password, cpf } = req.body;
-    const userSchema = joi.object({
-        name: joi.string().alphanum().min(3).max(30).required(),
-        email: joi.string().email().required(),
-        password: joi.string().min(6).required(),
-        cpf: joi
-            .string()
-            .length(11)
-            .pattern(/^[0-9]+$/)
-            .required(),
-    });
-    const validation = userSchema.validate(req.body);
-    try {
-        if (await hasEmailOrCpf(email, cpf)) {
-            res.sendStatus(409);
-        } else if ('error' in validation) {
-            res.sendStatus(400);
-        } else {
-            const hash = bcrypt.hashSync(password, 10);
-            await connection.query(
-                'INSERT INTO users (name, cpf, email, password) VALUES ($1, $2, $3, $4)',
-                [name, cpf, email, hash]
-            );
-            res.sendStatus(201);
-        }
-    } catch (e) {
-        res.sendStatus(500);
-    }
+app.post("/sign-up", async (req, res) => {
+	const { name, email, password, cpf } = req.body;
+	const userSchema = joi.object({
+		name: joi.string().alphanum().min(3).max(30).required(),
+		email: joi.string().email().required(),
+		password: joi.string().min(6).required(),
+		cpf: joi
+			.string()
+			.length(11)
+			.pattern(/^[0-9]+$/)
+			.required(),
+	});
+	const validation = userSchema.validate(req.body);
+	try {
+		if (await hasEmailOrCpf(email, cpf)) {
+			res.sendStatus(409);
+		} else if ("error" in validation) {
+			res.sendStatus(400);
+		} else {
+			const hash = bcrypt.hashSync(password, 10);
+			await connection.query("INSERT INTO users (name, cpf, email, password) VALUES ($1, $2, $3, $4)", [
+				name,
+				cpf,
+				email,
+				hash,
+			]);
+			res.sendStatus(201);
+		}
+	} catch (e) {
+		res.sendStatus(500);
+	}
 });
 
 async function hasEmailOrCpf(email, cpf) {
-    const requestEmail = await connection.query(
-        'SELECT * FROM users WHERE email = $1',
-        [email]
-    );
+	const requestEmail = await connection.query("SELECT * FROM users WHERE email = $1", [email]);
 
-    if (requestEmail.rows.length !== 0) {
-        return true;
-    } else {
-        const requestCpf = await connection.query(
-            'SELECT * FROM users WHERE cpf = $1',
-            [cpf]
-        );
+	if (requestEmail.rows.length !== 0) {
+		return true;
+	} else {
+		const requestCpf = await connection.query("SELECT * FROM users WHERE cpf = $1", [cpf]);
 
-        if (requestCpf.rows.length !== 0) {
-            return true;
-        } else {
-            return false;
-        }
-    }
+		if (requestCpf.rows.length !== 0) {
+			return true;
+		} else {
+			return false;
+		}
+	}
 }
 
-app.post('/sign-in', async (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) {
-        res.sendStatus(400);
-    } else {
-        try {
-            const request = await connection.query(
-                'SELECT * FROM users WHERE email = $1',
-                [email]
-            );
-            const customer = request.rows[0];
-            if (customer && bcrypt.compareSync(password, customer.password)) {
-                const secretKey = process.env.JWT_SECRET;
-                const data = { name: customer.name };
-                const token = jwt.sign(data, secretKey);
-                await connection.query(
-                    `
+app.post("/sign-in", async (req, res) => {
+	const { email, password } = req.body;
+	if (!email || !password) {
+		res.sendStatus(400);
+	} else {
+		try {
+			const request = await connection.query("SELECT * FROM users WHERE email = $1", [email]);
+			const customer = request.rows[0];
+			if (customer && bcrypt.compareSync(password, customer.password)) {
+				const secretKey = process.env.JWT_SECRET;
+				const data = { name: customer.name };
+				const token = jwt.sign(data, secretKey);
+				await connection.query(
+					`
               INSERT INTO sessions ("customerId", token)
               VALUES ($1, $2)
             `,
-                    [customer.id, token]
-                );
+					[customer.id, token]
+				);
 
-                res.send({ name: customer.name, token });
-            } else {
-                res.sendStatus(401);
-            }
-        } catch (e) {
-            console.log(e);
-            res.sendStatus(500);
-        }
-    }
+				res.send({ name: customer.name, token });
+			} else {
+				res.sendStatus(401);
+			}
+		} catch (e) {
+			console.log(e);
+			res.sendStatus(500);
+		}
+	}
 });
 
 async function authUser(authorization) {
@@ -106,14 +99,11 @@ async function authUser(authorization) {
 
 app.get("/products/:category", async (req, res) => {
 	try {
-		const authorization = req.headers["authorization"];
 		const { category } = req.params;
 
-		if (!["mouse", "teclado", "memoria_ram", "placa_de_video", "processador", "ssd"].includes(category) || !authorization) {
+		if (!["mouse", "teclado", "memoria_ram", "placa_de_video", "processador", "ssd"].includes(category)) {
 			return res.sendStatus(400);
 		}
-		const user = await authUser(authorization);
-		if (!user) return res.sendStatus(401);
 
 		const requestedData = await connection.query(
 			`
@@ -131,11 +121,6 @@ app.get("/products/:category", async (req, res) => {
 
 app.get("/products", async (req, res) => {
 	try {
-		const authorization = req.headers["authorization"];
-		if (!authorization) return res.sendStatus(400);
-		const user = await authUser(authorization);
-		if (!user) return res.sendStatus(401);
-
 		const search = req.query.search ? "%" + req.query.search + "%" : "%%";
 		const requestedData = await connection.query(
 			`
@@ -154,10 +139,6 @@ app.get("/products", async (req, res) => {
 
 app.get("/product/:id", async (req, res) => {
 	try {
-		const authorization = req.headers["authorization"];
-		if (!authorization) return res.sendStatus(400);
-		const user = await authUser(authorization);
-		if (!user) return res.sendStatus(401);
 		const { id } = req.params;
 
 		const requestedData = await connection.query(
