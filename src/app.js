@@ -111,7 +111,7 @@ app.post('/sales', async (req, res) => {
                     [customerId, p.quantity, p.name]
                 );
             });
-            sendEmail(email,cart);
+            sendEmail(email, cart);
             res.sendStatus(201);
         } else {
             res.sendStatus(400);
@@ -181,43 +181,23 @@ app.get('/products', async (req, res) => {
 });
 
 app.get("/product/:id", async (req, res) => {
-	try {
-		const { id } = req.params;
-        if(isNaN(id)) return res.sendStatus(400);
-		const requestedData = await connection.query(
-			`
-    SELECT products.*, categories.title AS "categoryName" FROM products
-    JOIN categories
-    ON products."categoryId" = categories.id
-    WHERE products.id = $1
-    `,
-			[id]
-		);
-        if(requestedData.rows[0] === undefined) return res.sendStatus(404);
-		res.send(requestedData.rows[0]);
-	} catch {
-		res.sendStatus(500);
-	}
+    try {
+        const { id } = req.params;
+        if (isNaN(id)) return res.sendStatus(400);
+        const requestedData = await connection.query(
+            `
+                SELECT products.*, categories.title AS "categoryName" FROM products
+                JOIN categories
+                ON products."categoryId" = categories.id
+                WHERE products.id = $1
+            `,
+            [id]
+        );
+        if (requestedData.rows[0] === undefined) return res.sendStatus(404);
+        res.send(requestedData.rows[0]);
+    } catch {
+        res.sendStatus(500);
+    }
 });
 
 export default app;
-
-/*
-await connection.query(
-	`INSERT INTO products (title, description, image, "categoryId", price) values ('mouselegal', 'mouse super legal', 'https://images-na.ssl-images-amazon.com/images/I/71OrygkkeOL._AC_SY450_.jpg', 1, 10)`
-);
-await connection.query(
-	`INSERT INTO products (title, description, image, "categoryId", price) values ('tecladolegal', 'teclado super legal', 'https://http2.mlstatic.com/D_NQ_NP_826537-MLA43977268687_112020-O.jpg', 2, 20)`
-);
-await connection.query(
-	`INSERT INTO products (title, description, image, "categoryId", price) values ('memorialegal', 'memoria super legal', 'https://http2.mlstatic.com/D_NQ_NP_964396-MLA32170094202_092019-O.jpg', 3, 30)`
-);
-await connection.query(
-	`INSERT INTO products (title, description, image, "categoryId", price) values ('placalegal', 'placa super legal', 'https://http2.mlstatic.com/D_NQ_NP_695979-MLA40023007473_122019-O.jpg', 4, 40)`
-);
-await connection.query(
-	`INSERT INTO products (title, description, image, "categoryId", price) values ('processadorlegal', 'processador super legal', 'https://i.zst.com.br/images/os-8-melhores-processadores-intel-em-2019-photo760663649-44-17-13.jpg', 5, 50)`
-);
-await connection.query(
-	`INSERT INTO products (title, description, image, "categoryId", price) values ('ssdlegal', 'ssd super legal', 'https://images-na.ssl-images-amazon.com/images/I/61U7T1koQqL._AC_SY450_.jpg', 6, 60)`
-);*/
